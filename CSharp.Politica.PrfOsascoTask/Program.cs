@@ -55,14 +55,14 @@ namespace CSharp.Politica.PrfOsascoTask
         }
     }
 
-    public class ExamPrfOsasco
+    public class DataPrfOsasco
     {
         public DateTime Date { get; set; }
         public DictionaryTree<string, string> Group { get; set; }
         public decimal Value { get; set; }
     }
 
-    class Program
+    public class Program
     {
         private static readonly string[] rootPath = new string[] { "Política", "Prefeituras", "Osasco" };
         private static readonly Guid OsascoGroupId = new Guid("0AA16E58-12C8-4BB5-9F18-F8BDB9914259");
@@ -176,11 +176,11 @@ namespace CSharp.Politica.PrfOsascoTask
                     {
                         GetViagens(
                             year,
-                            out List<ExamPrfOsasco> exams,
+                            out List<DataPrfOsasco> datas,
                             out DictionaryTree<string, string> groups,
                             treatIndexLocal);
                         //GroupBulkInsertByName(groups);
-                        //ExamBulkInsert(exams, treatIndex);
+                        //DataBulkInsert(datas, treatIndex);
                         break;
                     }
                     catch (Exception)
@@ -208,14 +208,14 @@ namespace CSharp.Politica.PrfOsascoTask
                             GetDespesas(
                                 year, 
                                 month, 
-                                out List<ExamPrfOsasco> exams, 
+                                out List<DataPrfOsasco> datas, 
                                 out DictionaryTree<string, string> groups, 
                                 treatIndexLocal);
                             GroupBulkInsertByName(groups);
-                            ExamBulkInsert(exams, treatIndex);
+                            DataBulkInsert(datas, treatIndex);
                             break;
                         }
-                        catch (Exception)
+                        catch (Exception ex)
                         {
                             System.Threading.Thread.Sleep(30 * 60 * 1000);
                         }
@@ -224,10 +224,10 @@ namespace CSharp.Politica.PrfOsascoTask
             }
         }
 
-        static void Main(string[] args)
+        public static void Main(string[] args)
         {
             BulkInsertDespesas();
-            BulkInsertViagens();
+            //BulkInsertViagens();
         }
 
         private static List<ViagensCsv> GetViagensCsv(int year)
@@ -343,9 +343,9 @@ namespace CSharp.Politica.PrfOsascoTask
             return viagens;
         }
 
-        private static void GetViagens(int year, out List<ExamPrfOsasco> exams, out DictionaryTree<string, string> despesas, Func<string, string> treatIndex)
+        private static void GetViagens(int year, out List<DataPrfOsasco> datas, out DictionaryTree<string, string> despesas, Func<string, string> treatIndex)
         {
-            exams = new List<ExamPrfOsasco>();
+            datas = new List<DataPrfOsasco>();
             despesas = new DictionaryTree<string, string>(s => treatIndex(s), "Viagens");
 
             var viagensCsv = GetViagensCsv(year);
@@ -370,14 +370,14 @@ namespace CSharp.Politica.PrfOsascoTask
                     viagem.Nome,
                     "Valor");
 
-                var examValor = new ExamPrfOsasco()
+                var dataValor = new DataPrfOsasco()
                 {
                     Date = viagem.Inicio,
                     Group = groupValor,
                     Value = viagem.Valor
                 };
 
-                exams.Add(examValor);
+                datas.Add(dataValor);
 
                 var groupDias = despesas.AddIfNew(
                     "Prefeituras",
@@ -392,20 +392,20 @@ namespace CSharp.Politica.PrfOsascoTask
                     viagem.Nome,
                     "Dias");
 
-                var examDias = new ExamPrfOsasco()
+                var dataDias = new DataPrfOsasco()
                 {
                     Date = viagem.Inicio,
                     Group = groupDias,
                     Value = viagem.Valor
                 };
 
-                exams.Add(examDias);
+                datas.Add(dataDias);
             }
         }
 
-        private static void GetDespesas(int year, int month, out List<ExamPrfOsasco> exams, out DictionaryTree<string, string> despesas, Func<string, string> treatIndex)
+        private static void GetDespesas(int year, int month, out List<DataPrfOsasco> datas, out DictionaryTree<string, string> despesas, Func<string, string> treatIndex)
         {
-            exams = new List<ExamPrfOsasco>();
+            datas = new List<DataPrfOsasco>();
             despesas = new DictionaryTree<string, string>(s => treatIndex(s), "Despesas");
 
             var parameters = "{" + $"\"edtExercicio\":{year},\"edtMes\":{month},\"edtCategoria\":\"%\"" + "}";
@@ -453,14 +453,14 @@ namespace CSharp.Politica.PrfOsascoTask
                     tpPessoa,
                     childrenNode.SelectSingleNode("razao_social").InnerText);
 
-                var exam = new ExamPrfOsasco()
+                var data = new DataPrfOsasco()
                 {
                     Date = date,
                     Group = despesa,
                     Value = valor
                 };
 
-                exams.Add(exam);
+                datas.Add(data);
 
                 ////Console.WriteLine(childrenNode.SelectSingleNode("razao_social").InnerText);
                 ////Console.WriteLine(childrenNode.SelectSingleNode("nr_processo").InnerText);
@@ -493,7 +493,7 @@ namespace CSharp.Politica.PrfOsascoTask
                 Timeout = int.MaxValue,
                 RequestFormat = DataFormat.Json
             };
-            var body = new { Groups = (GroupNameTree)groups , Root = rootPath };
+            var body = new { NewGroups = (GroupNameTree)groups , RootPath = rootPath };
 
             request.AddJsonBody(body);
 
@@ -507,9 +507,9 @@ namespace CSharp.Politica.PrfOsascoTask
             }
         }
 
-        private static void ExamBulkInsert(List<ExamPrfOsasco> exams, Func<string, string> treatIndex)
+        private static void DataBulkInsert(List<DataPrfOsasco> datas, Func<string, string> treatIndex)
         {
-            if (!exams.Any())
+            if (!datas.Any())
                 return;
 
             var dataUriStr = "http://localhost:58994/odata/v4";
@@ -520,18 +520,18 @@ namespace CSharp.Politica.PrfOsascoTask
             };
 
             var groupsDbDictionary = container.Groups.ToDictionaryTree(g => treatIndex(g.Name), OsascoGroupId);
-            var exams2 = exams
+            var datas2 = datas
                 .GroupBy(e => string.Join("/", e.Group.Key) + "/" + e.Date.ToString())
                 .Select(eg =>
-                    new Data.Models.ExamDecimal()
+                    new Data.Models.DataDecimal()
                     {
                         CollectionDate = eg.First().Date,
                         GroupId = groupsDbDictionary[eg.First().Group.Key].Data.Id,
                         DecimalValue = eg.Sum(e => e.Value)
                     })
-                .ToList<Data.Models.Exam>();
+                .ToList<Data.Models.Data>();
 
-            var bulkInsert = Default.ExtensionMethods.BulkInsert(container.Exams, exams2);
+            var bulkInsert = Default.ExtensionMethods.BulkInsert(container.Datas, datas2);
             bulkInsert.Execute();
         }
     }
